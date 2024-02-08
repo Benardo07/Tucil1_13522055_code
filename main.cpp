@@ -16,33 +16,90 @@ struct Position {
     int x, y;
 };
 
-int calculatePathReward(const vector<string>& path, const vector<Sequence>& sequences) {
+struct TokenInfo {
+    string value;
+    Position pos;
+};
+
+struct InputData {
+    int bufferSize;
+    int matrixWidth, matrixHeight;
+    vector<vector<string>> matrix;
+    vector<Sequence> sequences;
+};
+
+
+InputData readFromFile(const string& filePath) {
+    ifstream file(filePath);
+    if (!file) {
+        cerr << "Error opening file" << endl;
+        exit(1); // or handle the error in a way appropriate for your application
+    }
+
+    InputData data;
+    file >> data.bufferSize;
+    file >> data.matrixWidth >> data.matrixHeight;
+    file.ignore(numeric_limits<streamsize>::max(), '\n');
+
+    // Read the matrix
+    data.matrix.resize(data.matrixHeight, vector<string>(data.matrixWidth));
+    for (int i = 0; i < data.matrixHeight; ++i) {
+        for (int j = 0; j < data.matrixWidth; ++j) {
+            file >> data.matrix[i][j];
+        }
+        file.ignore(numeric_limits<streamsize>::max(), '\n');
+    }
+
+    int numberOfSequences;
+    file >> numberOfSequences;
+    file.ignore(numeric_limits<streamsize>::max(), '\n');
+    data.sequences.resize(numberOfSequences);
+    for (int i = 0; i < numberOfSequences; ++i) {
+        string line;
+        getline(file, line); // Read the line of tokens
+        stringstream sequence(line);
+        string token;
+        while (getline(sequence, token, ' ')) {
+            if (!token.empty()) {
+                data.sequences[i].tokens.push_back(token);
+            }
+        }
+        file >> data.sequences[i].reward;
+        file.ignore(numeric_limits<streamsize>::max(), '\n');
+    }
+
+    file.close();
+    return data;
+}
+
+
+int calculatePathReward(const vector<TokenInfo>& path, const vector<Sequence>& sequences) {
     int totalReward = 0;
     for (const auto& sequence : sequences) {
         for (size_t i = 0; i <= path.size() - sequence.tokens.size(); ++i) {
             bool match = true;
             for (size_t j = 0; j < sequence.tokens.size(); ++j) {
-                if (path[i + j] != sequence.tokens[j]) {
+                if (path[i + j].value != sequence.tokens[j]) {
                     match = false;
                     break;
                 }
             }
             if (match) {
                 totalReward += sequence.reward;
-                break; // Assuming a path can match a sequence only once, remove break if multiple matches of the same sequence should count
+                break; // Assuming a path can match a sequence only once
             }
         }
     }
     return totalReward;
 }
 
-void explorePaths(const vector<vector<string>>& matrix, Position pos, vector<string>& path, vector<vector<string>>& allPaths, vector<vector<bool>>& visited, int bufferSize, bool moveVertical, const vector<Sequence>& sequences, int& maxReward, vector<string>& bestPath) {
+void explorePaths(const vector<vector<string>>& matrix, Position pos, vector<TokenInfo>& path, vector<vector<string>>& allPaths, vector<vector<bool>>& visited, int bufferSize, bool moveVertical, const vector<Sequence>& sequences, int& maxReward, vector<TokenInfo>& bestPath) {
     if (pos.x < 0 || pos.x >= matrix[0].size() || pos.y < 0 || pos.y >= matrix.size() || visited[pos.y][pos.x]) {
         return;
     }
 
     visited[pos.y][pos.x] = true;
-    path.push_back(matrix[pos.y][pos.x]);
+    path.push_back(TokenInfo{matrix[pos.y][pos.x], pos});
 
     if (path.size() == bufferSize) {
         int currentReward = calculatePathReward(path, sequences);
@@ -78,82 +135,64 @@ void explorePaths(const vector<vector<string>>& matrix, Position pos, vector<str
 }
 
 int main() {
-    ifstream file("token.txt"); // Replace with your file path
 
-    if (!file) {
-        cerr << "Error opening file" << endl;
-        return 1;
-    }
+    while(true){
+        cout << "   Hello Welcome To CyberPunk MiniGame 2077   "<<endl;
+        cout << "  ==========================================  "<<endl;
 
-    int bufferSize;
-    int matrixWidth, matrixHeight;
-    file >> bufferSize;
-    file >> matrixWidth >> matrixHeight;
-    file.ignore(numeric_limits<streamsize>::max(), '\n');
+        cout << "Choose which option do you want to enter your data : " << endl;
+        cout << "1. Input in terminal. " << endl;
+        cout << "2. Input from txt file.  "<< endl;
+        char selection;
+        cin >> selection;
+        InputData inputData;
 
-    // Read the matrix
-    vector<vector<string>> matrix(matrixHeight, vector<string>(matrixWidth));
-    for (int i = 0; i < matrixHeight; ++i) {
-        for (int j = 0; j < matrixWidth; ++j) {
-            file >> matrix[i][j];
+        if(selection == '1'){
+
+        }else if(selection == '2'){
+            cout<<endl;
+            cout<<"Masukan nama file text yang menyimpan data : ";
+            string fileName;
+            cin >> fileName;
+            inputData = readFromFile(fileName);
+            
         }
-        file.ignore(numeric_limits<streamsize>::max(), '\n');
-    }
+        
+        vector<TokenInfo> path;
+        vector<vector<string>> allPaths;
+        vector<vector<bool>> visited(inputData.matrixHeight, vector<bool>(inputData.matrixWidth, false));
+        int maxReward = 0;
+        vector<TokenInfo> bestPath;
+        int startPos;
+        cout << "Choose the start point in the first row (1 - "<<inputData.matrixWidth<< ") : ";
+        cin >> startPos;
+        explorePaths(inputData.matrix, { startPos -1,0}, path, allPaths, visited, inputData.bufferSize, true, inputData.sequences, maxReward, bestPath);
+        cout<< endl;
+        cout << "Best path with highest reward: " << maxReward << endl;
+        cout << endl;
+        for (const auto& token : bestPath) {
+            cout << token.value << " ";
+        }
+        cout << endl;
+        cout << endl;
+        for (const auto& token : bestPath) {
+            cout << token.pos.x + 1<< ", "<< token.pos.y + 1<<endl;
+        }
+        char choice;
+        cout << "apakah anda ingin menyimpan solusi ? (y/n)" <<endl;
+        cin >> choice;
 
-    int numberOfSequences;
-    file >> numberOfSequences;
-    file.ignore(numeric_limits<streamsize>::max(), '\n');
-    // Read the sequences and rewards
-    vector<Sequence> sequences(numberOfSequences);
-    for (int i = 0; i < numberOfSequences; ++i) {
-        string line;
-        getline(file, line); // Read the line of tokens
-        stringstream sequence(line); // Create a stringstream from the line
-        string token;
-        while (getline(sequence, token, ' ')) { // Use getline on stringstream to split by space
-            if (!token.empty()) { // Check to avoid empty tokens due to spaces
-                sequences[i].tokens.push_back(token);
-            }
+        if(choice == 'y'){
+
+        }else if(choice == 'n'){
+            break;
         }
 
-        file >> sequences[i].reward;
-        file.ignore(numeric_limits<streamsize>::max(), '\n');
+        
+
+        
     }
-
-    file.close();
-
-    cout<<bufferSize<<endl;
-    cout<<matrixHeight<<endl;
-    cout<<matrixWidth<<endl;
     
-    for (int i = 0; i < matrixHeight; ++i) {
-        for (int j = 0; j < matrixWidth; ++j) {
-            cout<<matrix[i][j];
-            cout<<" ";
-
-        }
-        cout<<endl;
-    }
-    cout<<numberOfSequences<<endl;
-
-    for (int i = 0; i < sequences.size(); ++i) {
-        cout << "Sequence " << i + 1 << ": ";
-        for (const string& token : sequences[i].tokens) {
-            cout << token << " ";
-        }
-        cout << "- Reward: " << sequences[i].reward << endl;
-    }
-    vector<string> path;
-    vector<vector<string>> allPaths;
-    vector<vector<bool>> visited(matrixHeight, vector<bool>(matrixWidth, false));
-    int maxReward = 0;
-    vector<string> bestPath;
-    explorePaths(matrix, {0, 0}, path, allPaths, visited, bufferSize, true, sequences, maxReward, bestPath);
-
-    cout << "Best path with highest reward: " << maxReward << endl;
-    for (const auto& token : bestPath) {
-        cout << token << " ";
-    }
-    cout << endl;
+    
     return 0;
 }
